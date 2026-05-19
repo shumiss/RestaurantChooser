@@ -21,7 +21,11 @@ export default function PeopleScreen({ people, onCreate, onUpdate, onDelete, onC
 
   const add = async () => {
     const name = input.trim();
-    if (!name || saving) return;
+    if (saving) return;
+    if (!name) {
+      setMessage('请先输入成员名称');
+      return;
+    }
 
     const exists = people.some(
       p => p.name.toLowerCase() === name.toLowerCase() && p.id !== editingId
@@ -51,10 +55,16 @@ export default function PeopleScreen({ people, onCreate, onUpdate, onDelete, onC
   };
 
   const remove = async (id) => {
-    await onDelete(id);
-    if (editingId === id) {
-      setEditingId(null);
-      setInput('');
+    try {
+      await onDelete(id);
+      if (editingId === id) {
+        setEditingId(null);
+        setInput('');
+      }
+      setMessage('已删除成员');
+    } catch (error) {
+      console.warn('删除成员失败', error);
+      setMessage('删除失败，请稍后重试');
     }
   };
 
@@ -74,7 +84,14 @@ export default function PeopleScreen({ people, onCreate, onUpdate, onDelete, onC
     if (people.length === 0) return;
     Alert.alert('清空成员', '确定要删除所有成员吗？', [
       { text: '取消', style: 'cancel' },
-      { text: '清空', style: 'destructive', onPress: onClear },
+      {
+        text: '清空',
+        style: 'destructive',
+        onPress: async () => {
+          await onClear();
+          setMessage('已清空成员');
+        },
+      },
     ]);
   };
 
@@ -94,7 +111,10 @@ export default function PeopleScreen({ people, onCreate, onUpdate, onDelete, onC
           placeholder="添加成员..."
           placeholderTextColor={COLORS.subtext}
           value={input}
-          onChangeText={setInput}
+          onChangeText={(value) => {
+            setInput(value);
+            if (message) setMessage('');
+          }}
           onSubmitEditing={add}
           returnKeyType="done"
         />

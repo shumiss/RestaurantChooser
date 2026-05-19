@@ -21,7 +21,11 @@ export default function RestaurantsScreen({ restaurants, onCreate, onUpdate, onD
 
   const add = async () => {
     const name = input.trim();
-    if (!name || saving) return;
+    if (saving) return;
+    if (!name) {
+      setMessage('请先输入餐厅名称');
+      return;
+    }
 
     const exists = restaurants.some(
       r => r.name.toLowerCase() === name.toLowerCase() && r.id !== editingId
@@ -51,10 +55,16 @@ export default function RestaurantsScreen({ restaurants, onCreate, onUpdate, onD
   };
 
   const remove = async (id) => {
-    await onDelete(id);
-    if (editingId === id) {
-      setEditingId(null);
-      setInput('');
+    try {
+      await onDelete(id);
+      if (editingId === id) {
+        setEditingId(null);
+        setInput('');
+      }
+      setMessage('已删除餐厅');
+    } catch (error) {
+      console.warn('删除餐厅失败', error);
+      setMessage('删除失败，请稍后重试');
     }
   };
 
@@ -74,7 +84,14 @@ export default function RestaurantsScreen({ restaurants, onCreate, onUpdate, onD
     if (restaurants.length === 0) return;
     Alert.alert('清空餐厅', '确定要删除所有餐厅吗？', [
       { text: '取消', style: 'cancel' },
-      { text: '清空', style: 'destructive', onPress: onClear },
+      {
+        text: '清空',
+        style: 'destructive',
+        onPress: async () => {
+          await onClear();
+          setMessage('已清空餐厅');
+        },
+      },
     ]);
   };
 
@@ -94,7 +111,10 @@ export default function RestaurantsScreen({ restaurants, onCreate, onUpdate, onD
           placeholder="添加新餐厅..."
           placeholderTextColor={COLORS.subtext}
           value={input}
-          onChangeText={setInput}
+          onChangeText={(value) => {
+            setInput(value);
+            if (message) setMessage('');
+          }}
           onSubmitEditing={add}
           returnKeyType="done"
         />
