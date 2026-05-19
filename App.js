@@ -68,13 +68,13 @@ export default function App() {
     setHistory(await getDecisionHistory());
   };
 
-  const createRestaurant = async (name) => {
-    await addRestaurant(name);
+  const createRestaurant = async (restaurant) => {
+    await addRestaurant(restaurant);
     await refreshRestaurants();
   };
 
-  const renameRestaurant = async (id, name) => {
-    await updateRestaurant(id, name);
+  const renameRestaurant = async (id, restaurant) => {
+    await updateRestaurant(id, restaurant);
     await refreshRestaurants();
   };
 

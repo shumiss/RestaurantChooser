@@ -7,10 +7,14 @@ Public repository: https://github.com/shumiss/RestaurantChooser
 ## Features
 
 - Add, edit, delete, and clear restaurants.
+- Store restaurant cuisine, price level, rating, and delivery support.
 - Add, edit, delete, and clear people.
 - Prevent duplicate restaurant and person names.
+- Select which people are participating in the meal.
+- Filter restaurants by cuisine, max price, minimum rating, and delivery.
 - Randomly choose a restaurant.
 - Randomly choose a payer from the people list.
+- Accept a recommendation or let participants use vetoes.
 - Store the last 20 decision records.
 - Persist restaurants, people, and decision history in SQLite.
 - Migrate older AsyncStorage data into SQLite on first launch.
@@ -88,6 +92,8 @@ The app creates three tables:
 - `people`
 - `decision_history`
 
+The `restaurants` table stores `name`, `cuisine`, `price`, `rating`, and `delivery`, so the Decision screen can pre-filter restaurants before random selection.
+
 For web builds, `expo-sqlite` needs WebAssembly support. This is configured in:
 
 ```text
@@ -110,10 +116,11 @@ Manual test flow:
 
 1. Opened the app in the browser.
 2. Verified old data migrated into SQLite.
-3. Added a restaurant.
+3. Added a restaurant with cuisine, price, rating, and delivery values.
 4. Added a person.
-5. Randomly selected a restaurant.
-6. Verified the decision history updated.
+5. Selected participating people.
+6. Filtered restaurants and randomly selected a restaurant.
+7. Verified payer selection, veto controls, and decision history updates.
 
 ## Attribution
 

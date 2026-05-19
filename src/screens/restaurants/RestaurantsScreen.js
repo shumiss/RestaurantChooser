@@ -3,6 +3,7 @@ import {
   View, Text, StyleSheet, TouchableOpacity,
   TextInput, FlatList, SafeAreaView, Alert
 } from 'react-native';
+import { Picker } from '@react-native-picker/picker';
 
 const COLORS = {
   bg: '#F2F2F7',
@@ -13,14 +14,28 @@ const COLORS = {
   border: '#E5E5EA',
 };
 
+const CUISINES = ['中餐', '西餐', '日料', '韩餐', '快餐', '火锅', '甜品', '其他'];
+const DEFAULT_FORM = {
+  name: '',
+  cuisine: '其他',
+  price: 2,
+  rating: 3,
+  delivery: false,
+};
+
 export default function RestaurantsScreen({ restaurants, onCreate, onUpdate, onDelete, onClear }) {
-  const [input, setInput] = useState('');
+  const [form, setForm] = useState(DEFAULT_FORM);
   const [editingId, setEditingId] = useState(null);
   const [message, setMessage] = useState('');
   const [saving, setSaving] = useState(false);
 
-  const add = async () => {
-    const name = input.trim();
+  const updateForm = (field, value) => {
+    setForm(current => ({ ...current, [field]: value }));
+    if (message) setMessage('');
+  };
+
+  const save = async () => {
+    const name = form.name.trim();
     if (saving) return;
     if (!name) {
       setMessage('请先输入餐厅名称');
@@ -28,24 +43,26 @@ export default function RestaurantsScreen({ restaurants, onCreate, onUpdate, onD
     }
 
     const exists = restaurants.some(
-      r => r.name.toLowerCase() === name.toLowerCase() && r.id !== editingId
+      restaurant => restaurant.name.toLowerCase() === name.toLowerCase() && restaurant.id !== editingId
     );
     if (exists) {
       setMessage('这家餐厅已经在列表里了');
       return;
     }
 
+    const payload = { ...form, name };
+
     try {
       setSaving(true);
       if (editingId) {
-        await onUpdate(editingId, name);
+        await onUpdate(editingId, payload);
         setEditingId(null);
         setMessage('已更新餐厅');
       } else {
-        await onCreate(name);
+        await onCreate(payload);
         setMessage('已添加餐厅');
       }
-      setInput('');
+      setForm(DEFAULT_FORM);
     } catch (error) {
       console.warn('保存餐厅失败', error);
       setMessage('保存失败，请稍后重试');
@@ -58,8 +75,7 @@ export default function RestaurantsScreen({ restaurants, onCreate, onUpdate, onD
     try {
       await onDelete(id);
       if (editingId === id) {
-        setEditingId(null);
-        setInput('');
+        cancelEdit();
       }
       setMessage('已删除餐厅');
     } catch (error) {
@@ -70,13 +86,19 @@ export default function RestaurantsScreen({ restaurants, onCreate, onUpdate, onD
 
   const edit = (item) => {
     setEditingId(item.id);
-    setInput(item.name);
-    setMessage('正在编辑餐厅名称');
+    setForm({
+      name: item.name,
+      cuisine: item.cuisine || '其他',
+      price: Number(item.price || 2),
+      rating: Number(item.rating || 3),
+      delivery: Boolean(item.delivery),
+    });
+    setMessage('正在编辑餐厅信息');
   };
 
   const cancelEdit = () => {
     setEditingId(null);
-    setInput('');
+    setForm(DEFAULT_FORM);
     setMessage('');
   };
 
@@ -89,6 +111,7 @@ export default function RestaurantsScreen({ restaurants, onCreate, onUpdate, onD
         style: 'destructive',
         onPress: async () => {
           await onClear();
+          cancelEdit();
           setMessage('已清空餐厅');
         },
       },
@@ -105,28 +128,79 @@ export default function RestaurantsScreen({ restaurants, onCreate, onUpdate, onD
         </TouchableOpacity>
       </View>
 
-      <View style={styles.inputCard}>
+      <View style={styles.formCard}>
         <TextInput
           style={styles.input}
-          placeholder="添加新餐厅..."
+          placeholder="餐厅名称"
           placeholderTextColor={COLORS.subtext}
-          value={input}
-          onChangeText={(value) => {
-            setInput(value);
-            if (message) setMessage('');
-          }}
-          onSubmitEditing={add}
+          value={form.name}
+          onChangeText={value => updateForm('name', value)}
+          onSubmitEditing={save}
           returnKeyType="done"
         />
-        {editingId && (
-          <TouchableOpacity style={styles.cancelBtn} onPress={cancelEdit}>
-            <Text style={styles.cancelBtnText}>×</Text>
+
+        <View style={styles.fieldRow}>
+          <View style={styles.pickerBox}>
+            <Text style={styles.fieldLabel}>菜系</Text>
+            <Picker
+              selectedValue={form.cuisine}
+              onValueChange={value => updateForm('cuisine', value)}
+              style={styles.picker}
+            >
+              {CUISINES.map(cuisine => (
+                <Picker.Item key={cuisine} label={cuisine} value={cuisine} />
+              ))}
+            </Picker>
+          </View>
+          <View style={styles.pickerBox}>
+            <Text style={styles.fieldLabel}>价格</Text>
+            <Picker
+              selectedValue={form.price}
+              onValueChange={value => updateForm('price', Number(value))}
+              style={styles.picker}
+            >
+              {[1, 2, 3, 4].map(price => (
+                <Picker.Item key={price} label={'¥'.repeat(price)} value={price} />
+              ))}
+            </Picker>
+          </View>
+        </View>
+
+        <View style={styles.fieldRow}>
+          <View style={styles.pickerBox}>
+            <Text style={styles.fieldLabel}>评分</Text>
+            <Picker
+              selectedValue={form.rating}
+              onValueChange={value => updateForm('rating', Number(value))}
+              style={styles.picker}
+            >
+              {[1, 2, 3, 4, 5].map(rating => (
+                <Picker.Item key={rating} label={`${rating} 星`} value={rating} />
+              ))}
+            </Picker>
+          </View>
+          <TouchableOpacity
+            style={[styles.deliveryToggle, form.delivery && styles.deliveryToggleActive]}
+            onPress={() => updateForm('delivery', !form.delivery)}
+          >
+            <Text style={[styles.deliveryText, form.delivery && styles.deliveryTextActive]}>
+              {form.delivery ? '支持外卖' : '不支持外卖'}
+            </Text>
           </TouchableOpacity>
-        )}
-        <TouchableOpacity style={[styles.addBtn, saving && styles.addBtnDisabled]} onPress={add} disabled={saving}>
-          <Text style={styles.addBtnText}>{editingId ? '✓' : '+'}</Text>
-        </TouchableOpacity>
+        </View>
+
+        <View style={styles.formActions}>
+          {editingId && (
+            <TouchableOpacity style={styles.cancelBtn} onPress={cancelEdit}>
+              <Text style={styles.cancelBtnText}>取消</Text>
+            </TouchableOpacity>
+          )}
+          <TouchableOpacity style={[styles.saveBtn, saving && styles.saveBtnDisabled]} onPress={save} disabled={saving}>
+            <Text style={styles.saveBtnText}>{editingId ? '保存修改' : '添加餐厅'}</Text>
+          </TouchableOpacity>
+        </View>
       </View>
+
       {!!message && <Text style={styles.message}>{message}</Text>}
 
       <FlatList
@@ -145,7 +219,13 @@ export default function RestaurantsScreen({ restaurants, onCreate, onUpdate, onD
               <View style={styles.indexBadge}>
                 <Text style={styles.indexText}>{index + 1}</Text>
               </View>
-              <Text style={styles.cardTitle}>{item.name}</Text>
+              <View style={styles.cardInfo}>
+                <Text style={styles.cardTitle}>{item.name}</Text>
+                <Text style={styles.cardMeta}>
+                  {item.cuisine} · {'¥'.repeat(item.price)} · {'★'.repeat(item.rating)}
+                  {item.delivery ? ' · 外卖' : ''}
+                </Text>
+              </View>
             </View>
             <View style={styles.actions}>
               <TouchableOpacity onPress={() => edit(item)} style={styles.editBtn}>
@@ -165,28 +245,48 @@ export default function RestaurantsScreen({ restaurants, onCreate, onUpdate, onD
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: COLORS.bg, paddingHorizontal: 20, paddingTop: 20 },
   pageTitle: { fontSize: 34, fontWeight: '700', color: COLORS.primary, marginBottom: 4 },
-  pageSubtitle: { fontSize: 15, color: COLORS.subtext, marginBottom: 24 },
+  pageSubtitle: { fontSize: 15, color: COLORS.subtext, marginBottom: 18 },
   headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
   clearText: { color: COLORS.accent, fontSize: 14, fontWeight: '600' },
   disabledText: { color: COLORS.border },
-  inputCard: {
-    flexDirection: 'row', backgroundColor: COLORS.card, borderRadius: 16,
-    padding: 8, marginBottom: 16, shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 8, elevation: 3,
+  formCard: {
+    backgroundColor: COLORS.card, borderRadius: 16, padding: 12, marginBottom: 14,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06, shadowRadius: 8, elevation: 3,
   },
-  input: { flex: 1, fontSize: 16, color: COLORS.primary, paddingHorizontal: 12, paddingVertical: 8 },
+  input: {
+    fontSize: 16, color: COLORS.primary, paddingHorizontal: 12,
+    paddingVertical: 10, borderWidth: 1, borderColor: COLORS.border,
+    borderRadius: 12, marginBottom: 10,
+  },
+  fieldRow: { flexDirection: 'row', gap: 10, marginBottom: 10, alignItems: 'stretch' },
+  pickerBox: {
+    flex: 1, borderWidth: 1, borderColor: COLORS.border,
+    borderRadius: 12, overflow: 'hidden', backgroundColor: '#FAFAFA',
+  },
+  fieldLabel: { color: COLORS.subtext, fontSize: 12, marginLeft: 12, marginTop: 8 },
+  picker: { minHeight: 42 },
+  deliveryToggle: {
+    flex: 1, borderRadius: 12, borderWidth: 1, borderColor: COLORS.border,
+    alignItems: 'center', justifyContent: 'center', backgroundColor: '#FAFAFA',
+    minHeight: 64,
+  },
+  deliveryToggleActive: { backgroundColor: '#FFF0EE', borderColor: COLORS.accent },
+  deliveryText: { color: COLORS.subtext, fontSize: 14, fontWeight: '600' },
+  deliveryTextActive: { color: COLORS.accent },
+  formActions: { flexDirection: 'row', justifyContent: 'flex-end', gap: 10 },
   cancelBtn: {
-    backgroundColor: '#F2F2F7', borderRadius: 12, marginRight: 8,
-    width: 44, height: 44, justifyContent: 'center', alignItems: 'center',
+    borderRadius: 12, paddingHorizontal: 16, paddingVertical: 12,
+    backgroundColor: '#F2F2F7',
   },
-  cancelBtnText: { color: COLORS.subtext, fontSize: 24, fontWeight: '300', lineHeight: 28 },
-  addBtn: {
+  cancelBtnText: { color: COLORS.primary, fontSize: 14, fontWeight: '700' },
+  saveBtn: {
     backgroundColor: COLORS.accent, borderRadius: 12,
-    width: 44, height: 44, justifyContent: 'center', alignItems: 'center',
+    paddingHorizontal: 18, paddingVertical: 12,
   },
-  addBtnDisabled: { backgroundColor: COLORS.border },
-  message: { color: COLORS.subtext, marginTop: -8, marginBottom: 12, fontSize: 13 },
-  addBtnText: { color: '#fff', fontSize: 24, fontWeight: '300', lineHeight: 28 },
+  saveBtnDisabled: { backgroundColor: COLORS.border },
+  saveBtnText: { color: '#fff', fontSize: 14, fontWeight: '700' },
+  message: { color: COLORS.subtext, marginTop: -4, marginBottom: 12, fontSize: 13 },
   card: {
     backgroundColor: COLORS.card, borderRadius: 16, padding: 16, marginBottom: 10,
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
@@ -199,7 +299,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center', alignItems: 'center', marginRight: 12,
   },
   indexText: { color: '#fff', fontWeight: '700', fontSize: 14 },
-  cardTitle: { fontSize: 16, fontWeight: '500', color: COLORS.primary, flex: 1 },
+  cardInfo: { flex: 1 },
+  cardTitle: { fontSize: 16, fontWeight: '700', color: COLORS.primary, marginBottom: 3 },
+  cardMeta: { fontSize: 12, color: COLORS.subtext },
   actions: { flexDirection: 'row', gap: 8 },
   editBtn: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, backgroundColor: '#F2F2F7' },
   editBtnText: { color: COLORS.primary, fontSize: 13, fontWeight: '600' },

@@ -25,6 +25,8 @@ The main issues found were:
 - Data was stored with AsyncStorage instead of SQLite.
 - State changes were saved through `useEffect`, which can overwrite stored data if initialization and saving happen in the wrong order.
 - The app had limited data operations: early versions only supported basic adding and deleting.
+- Restaurant records did not include decision attributes such as cuisine, price, rating, and delivery support.
+- The Decision screen did not yet implement the full flow: selecting participants, pre-filtering, random choice, accepting, and vetoing.
 - Decision history was not stored in a structured database table.
 - Web export failed after adding `expo-sqlite` until WebAssembly assets were added to Metro configuration.
 
@@ -47,7 +49,7 @@ restaurant_chooser.db
 The database contains three tables:
 
 ```sql
-restaurants(id, name, created_at)
+restaurants(id, name, cuisine, price, rating, delivery, created_at)
 people(id, name, created_at)
 decision_history(id, restaurant, person, created_at)
 ```
@@ -74,6 +76,19 @@ Both list screens now support:
 - Clear all
 - Duplicate-name prevention
 - Save failure message handling
+
+Restaurant entries now include cuisine, price level, rating, and delivery support. These values are stored in SQLite and used by the Decision screen for filtering.
+
+### Decision Flow
+
+The Decision screen now supports the core Restaurant Chooser workflow:
+
+- Select participating people.
+- Apply pre-filters for cuisine, max price, minimum rating, and delivery.
+- Randomly choose from the filtered restaurant list.
+- Randomly assign a payer from the selected participants.
+- Accept a result as final.
+- Let selected participants use vetoes and then choose again.
 
 ### Decision History
 
@@ -136,10 +151,12 @@ Manual testing was completed in the browser:
 
 1. Opened the app at `http://127.0.0.1:8081`.
 2. Confirmed the app loaded existing data after migration.
-3. Added a new restaurant.
+3. Added a new restaurant with cuisine, price, rating, and delivery values.
 4. Added a new person.
-5. Ran random restaurant selection.
-6. Confirmed the selection was added to the history list.
+5. Selected participating people.
+6. Applied restaurant filters.
+7. Ran random restaurant selection.
+8. Confirmed payer selection, veto controls, and the history list.
 
 ## 7. Remaining Notes
 

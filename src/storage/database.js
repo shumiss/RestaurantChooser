@@ -24,6 +24,10 @@ export async function initDatabase() {
     CREATE TABLE IF NOT EXISTS restaurants (
       id TEXT PRIMARY KEY NOT NULL,
       name TEXT NOT NULL UNIQUE,
+      cuisine TEXT NOT NULL DEFAULT '其他',
+      price INTEGER NOT NULL DEFAULT 2,
+      rating INTEGER NOT NULL DEFAULT 3,
+      delivery INTEGER NOT NULL DEFAULT 0,
       created_at TEXT NOT NULL
     );
 
@@ -41,7 +45,25 @@ export async function initDatabase() {
     );
   `);
 
+  await ensureRestaurantColumns(db);
   await migrateAsyncStorageData(db);
+}
+
+async function ensureRestaurantColumns(db) {
+  const columns = await db.getAllAsync('PRAGMA table_info(restaurants)');
+  const columnNames = columns.map(column => column.name);
+  const migrations = [
+    ['cuisine', "ALTER TABLE restaurants ADD COLUMN cuisine TEXT NOT NULL DEFAULT '其他'"],
+    ['price', 'ALTER TABLE restaurants ADD COLUMN price INTEGER NOT NULL DEFAULT 2'],
+    ['rating', 'ALTER TABLE restaurants ADD COLUMN rating INTEGER NOT NULL DEFAULT 3'],
+    ['delivery', 'ALTER TABLE restaurants ADD COLUMN delivery INTEGER NOT NULL DEFAULT 0'],
+  ];
+
+  for (const [name, sql] of migrations) {
+    if (!columnNames.includes(name)) {
+      await db.execAsync(sql);
+    }
+  }
 }
 
 async function migrateAsyncStorageData(db) {
@@ -70,12 +92,26 @@ async function insertLegacyItems(db, tableName, rawValue) {
 
     for (const item of items) {
       if (!item?.id || !item?.name) continue;
-      await db.runAsync(
-        `INSERT OR IGNORE INTO ${tableName} (id, name, created_at) VALUES (?, ?, ?)`,
-        item.id,
-        item.name,
-        now()
-      );
+      if (tableName === 'restaurants') {
+        await db.runAsync(
+          `INSERT OR IGNORE INTO restaurants (id, name, cuisine, price, rating, delivery, created_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?)`,
+          item.id,
+          item.name,
+          item.cuisine ?? '其他',
+          Number(item.price ?? 2),
+          Number(item.rating ?? 3),
+          item.delivery ? 1 : 0,
+          now()
+        );
+      } else {
+        await db.runAsync(
+          `INSERT OR IGNORE INTO ${tableName} (id, name, created_at) VALUES (?, ?, ?)`,
+          item.id,
+          item.name,
+          now()
+        );
+      }
     }
   } catch (error) {
     console.warn(`迁移 ${tableName} 失败`, error);
@@ -106,24 +142,42 @@ async function insertLegacyHistory(db, rawValue) {
 
 export async function getRestaurants() {
   const db = await getDatabase();
-  return db.getAllAsync('SELECT id, name FROM restaurants ORDER BY created_at ASC');
+  const rows = await db.getAllAsync(
+    'SELECT id, name, cuisine, price, rating, delivery FROM restaurants ORDER BY created_at ASC'
+  );
+  return rows.map(normalizeRestaurant);
 }
 
-export async function addRestaurant(name) {
+export async function addRestaurant(restaurant) {
   const db = await getDatabase();
   const id = Date.now().toString();
+  const normalized = normalizeRestaurant({ id, ...restaurant });
   await db.runAsync(
-    'INSERT INTO restaurants (id, name, created_at) VALUES (?, ?, ?)',
-    id,
-    name,
+    `INSERT INTO restaurants (id, name, cuisine, price, rating, delivery, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    normalized.id,
+    normalized.name,
+    normalized.cuisine,
+    normalized.price,
+    normalized.rating,
+    normalized.delivery ? 1 : 0,
     now()
   );
-  return { id, name };
+  return normalized;
 }
 
-export async function updateRestaurant(id, name) {
+export async function updateRestaurant(id, restaurant) {
   const db = await getDatabase();
-  await db.runAsync('UPDATE restaurants SET name = ? WHERE id = ?', name, id);
+  const normalized = normalizeRestaurant({ id, ...restaurant });
+  await db.runAsync(
+    'UPDATE restaurants SET name = ?, cuisine = ?, price = ?, rating = ?, delivery = ? WHERE id = ?',
+    normalized.name,
+    normalized.cuisine,
+    normalized.price,
+    normalized.rating,
+    normalized.delivery ? 1 : 0,
+    id
+  );
 }
 
 export async function deleteRestaurant(id) {
@@ -212,4 +266,15 @@ function formatHistoryDate(value) {
     hour: '2-digit',
     minute: '2-digit',
   });
+}
+
+function normalizeRestaurant(row) {
+  return {
+    id: row.id,
+    name: row.name,
+    cuisine: row.cuisine || '其他',
+    price: Number(row.price ?? 2),
+    rating: Number(row.rating ?? 3),
+    delivery: Boolean(row.delivery),
+  };
 }
