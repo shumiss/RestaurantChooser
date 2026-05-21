@@ -128,6 +128,12 @@ https://docs.expo.dev/build/setup/#log-in-to-your-expo-account
 
 The project keeps `eas.json` because EAS Build uses it for build profiles.
 
+The Android preview build was completed with EAS Build:
+
+https://expo.dev/accounts/leishu/projects/RestaurantChooser/builds/e6705be3-2eb0-4626-8675-c7d22d4e28f5
+
+Build status: completed.
+
 ## 6. Testing
 
 Static JavaScript checks were run:

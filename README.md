@@ -68,6 +68,12 @@ https://docs.expo.dev/build/setup/#log-in-to-your-expo-account
 
 The project contains `eas.json`. Keep this file in the repository because EAS uses it for build profiles.
 
+Expo EAS Android preview build:
+
+https://expo.dev/accounts/leishu/projects/RestaurantChooser/builds/e6705be3-2eb0-4626-8675-c7d22d4e28f5
+
+Build status: completed.
+
 ## SQLite Notes
 
 SQLite was installed with:
